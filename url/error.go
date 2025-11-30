@@ -1,0 +1,61 @@
+package url
+
+import (
+	"fmt"
+
+	"github.com/grafana/sobek"
+)
+
+// ErrorName identifies the category of a URL error.
+type ErrorName string
+
+const (
+	// TypeError is thrown when URL parsing fails or invalid
+	// operations are attempted.
+	TypeError ErrorName = "TypeError"
+)
+
+// Error represents a URL-related error that can be converted to a JS exception.
+type Error struct {
+	// Name contains one of the strings associated with an error name.
+	Name ErrorName `json:"name"`
+
+	// Message represents message or description associated with the given error name.
+	Message string `json:"message"`
+}
+
+// JSError creates a JavaScript error object that can be thrown.
+func (e *Error) JSError(rt *sobek.Runtime) *sobek.Object {
+	var constructor *sobek.Object
+
+	switch e.Name {
+	case TypeError:
+		constructor = rt.Get("TypeError").ToObject(rt)
+	default:
+		constructor = rt.Get("Error").ToObject(rt)
+	}
+
+	errorObj, err := rt.New(constructor, rt.ToValue(e.Message))
+	if err != nil {
+		// Fallback to generic error
+		errorObj = rt.ToValue(fmt.Errorf("%s: %s", e.Name, e.Message)).ToObject(rt)
+	}
+
+	return errorObj
+}
+
+// Error implements the `error` interface.
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s: %s", e.Name, e.Message)
+}
+
+// NewError returns a new Error instance.
+func NewError(name ErrorName, message string) *Error {
+	return &Error{
+		Name:    name,
+		Message: message,
+	}
+}
+
+var _ error = (*Error)(nil)
+
