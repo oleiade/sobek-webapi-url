@@ -1,0 +1,110 @@
+{
+  "commit": "3a2402822007826e89a1dc4fd5534977cccd1753",
+  "target_dir": "wpt",
+  "files": [
+    {
+      "src": "url/historical.any.js",
+      "dst": "url/historical.js"
+    },
+    {
+      "src": "url/idlharness.any.js",
+      "dst": "url/idlharness.js"
+    },
+    {
+      "src": "url/resources/a-element-origin.js",
+      "dst": "url/resources/a-element-origin.js"
+    },
+    {
+      "src": "url/resources/a-element.js",
+      "dst": "url/resources/a-element.js"
+    },
+    {
+      "src": "url/toascii.window.js",
+      "dst": "url/toascii.window.js"
+    },
+    {
+      "src": "url/url-constructor.any.js",
+      "dst": "url/url-constructor.js"
+    },
+    {
+      "src": "url/url-origin.any.js",
+      "dst": "url/url-origin.js"
+    },
+    {
+      "src": "url/url-searchparams.any.js",
+      "dst": "url/url-searchparams.js"
+    },
+    {
+      "src": "url/url-setters-stripping.any.js",
+      "dst": "url/url-setters-stripping.js"
+    },
+    {
+      "src": "url/url-setters.any.js",
+      "dst": "url/url-setters.js"
+    },
+    {
+      "src": "url/url-statics-canparse.any.js",
+      "dst": "url/url-statics-canparse.js"
+    },
+    {
+      "src": "url/url-statics-parse.any.js",
+      "dst": "url/url-statics-parse.js"
+    },
+    {
+      "src": "url/url-tojson.any.js",
+      "dst": "url/url-tojson.js"
+    },
+    {
+      "src": "url/urlencoded-parser.any.js",
+      "dst": "url/urlencoded-parser.js"
+    },
+    {
+      "src": "url/urlsearchparams-append.any.js",
+      "dst": "url/urlsearchparams-append.js"
+    },
+    {
+      "src": "url/urlsearchparams-constructor.any.js",
+      "dst": "url/urlsearchparams-constructor.js"
+    },
+    {
+      "src": "url/urlsearchparams-delete.any.js",
+      "dst": "url/urlsearchparams-delete.js"
+    },
+    {
+      "src": "url/urlsearchparams-foreach.any.js",
+      "dst": "url/urlsearchparams-foreach.js"
+    },
+    {
+      "src": "url/urlsearchparams-get.any.js",
+      "dst": "url/urlsearchparams-get.js"
+    },
+    {
+      "src": "url/urlsearchparams-getall.any.js",
+      "dst": "url/urlsearchparams-getall.js"
+    },
+    {
+      "src": "url/urlsearchparams-has.any.js",
+      "dst": "url/urlsearchparams-has.js"
+    },
+    {
+      "src": "url/urlsearchparams-set.any.js",
+      "dst": "url/urlsearchparams-set.js"
+    },
+    {
+      "src": "url/urlsearchparams-size.any.js",
+      "dst": "url/urlsearchparams-size.js"
+    },
+    {
+      "src": "url/urlsearchparams-sort.any.js",
+      "dst": "url/urlsearchparams-sort.js"
+    },
+    {
+      "src": "url/urlsearchparams-stringifier.any.js",
+      "dst": "url/urlsearchparams-stringifier.js"
+    },
+    {
+      "src": "resources/testharness.js",
+      "dst": "resources/testharness.js"
+    }
+  ]
+}
