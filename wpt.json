@@ -104,7 +104,8 @@
     },
     {
       "src": "resources/testharness.js",
-      "dst": "resources/testharness.js"
+      "dst": "resources/testharness.js",
+      "patch": "patches/resources/testharness.js.patch"
     }
   ]
 }
