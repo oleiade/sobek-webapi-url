@@ -30,5 +30,20 @@
 //   - Base URL validation is more lenient than WHATWG (uses Go's net/url)
 //   - Data URLs with opaque paths may not be fully supported
 //   - URLSearchParams iterators are not live (don't reflect mutations during iteration)
+//
+// # Go API invariants
+//
+// The exported Go types primarily exist to back the Sobek bindings. They are
+// intentionally small wrappers around Go's net/url so that they can be used in
+// tests and, when needed, inside Grafana/k6 integrations. Always construct a
+// URL by calling NewURL (and URLSearchParams with the constructors in this
+// package); doing so guarantees that:
+//
+//   - URL.inner is non-nil and carries the parsed WHATWG representation.
+//   - URL.searchParams is non-nil and bidirectionally synced with URL.inner.
+//   - URLSearchParams.owner is either nil or points to the URL that must be
+//     kept in sync.
+//
+// Consuming code should treat URL and URLSearchParams as opaque wrappers and
+// prefer the provided accessors instead of manipulating fields directly.
 package url
-

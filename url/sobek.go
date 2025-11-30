@@ -6,6 +6,17 @@ import (
 	"github.com/grafana/sobek"
 )
 
+const iterableExtractorSource = `(function(obj) {
+	const result = [];
+	for (const item of obj) {
+		if (!Array.isArray(item) || item.length !== 2) {
+			throw new TypeError("Invalid argument");
+		}
+		result.push([String(item[0]), String(item[1])]);
+	}
+	return result;
+})`
+
 // RegisterRuntime exports the URL and URLSearchParams constructors
 // into the provided sobek runtime.
 func RegisterRuntime(rt *sobek.Runtime) error {
@@ -22,7 +33,7 @@ func bindURL(rt *sobek.Runtime) error {
 		// Get the input argument (required)
 		inputArg := call.Argument(0)
 		if isNullish(inputArg) {
-			throwAsJSError(rt, NewError(TypeError, "Invalid URL"))
+			throwAsJSError(rt, invalidURLError())
 		}
 
 		input := inputArg.String()
@@ -118,12 +129,11 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 	// Create the searchParams object once and cache it
 	searchParamsObj := newURLSearchParamsObject(rt, u.SearchParams())
 
-	// Define href getter/setter
-	if err := obj.DefineAccessorProperty("href",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "href",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Href())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				if err := u.SetHref(call.Argument(0).String()); err != nil {
 					throwAsJSError(rt, err)
@@ -132,167 +142,120 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 				searchParamsObj = newURLSearchParamsObject(rt, u.SearchParams())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining href property: %w", err)))
-	}
+		})
 
-	// Define origin (read-only)
-	if err := obj.DefineAccessorProperty("origin",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "origin",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Origin())
-		}),
-		nil,
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining origin property: %w", err)))
-	}
+		},
+		nil)
 
-	// Define protocol getter/setter
-	if err := obj.DefineAccessorProperty("protocol",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "protocol",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Protocol())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetProtocol(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining protocol property: %w", err)))
-	}
+		})
 
-	// Define username getter/setter
-	if err := obj.DefineAccessorProperty("username",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "username",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Username())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetUsername(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining username property: %w", err)))
-	}
+		})
 
-	// Define password getter/setter
-	if err := obj.DefineAccessorProperty("password",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "password",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Password())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetPassword(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining password property: %w", err)))
-	}
+		})
 
-	// Define host getter/setter
-	if err := obj.DefineAccessorProperty("host",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "host",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Host())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetHost(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining host property: %w", err)))
-	}
+		})
 
-	// Define hostname getter/setter
-	if err := obj.DefineAccessorProperty("hostname",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "hostname",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Hostname())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetHostname(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining hostname property: %w", err)))
-	}
+		})
 
-	// Define port getter/setter
-	if err := obj.DefineAccessorProperty("port",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "port",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Port())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetPort(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining port property: %w", err)))
-	}
+		})
 
-	// Define pathname getter/setter
-	if err := obj.DefineAccessorProperty("pathname",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "pathname",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Pathname())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetPathname(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining pathname property: %w", err)))
-	}
+		})
 
-	// Define search getter/setter
-	if err := obj.DefineAccessorProperty("search",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "search",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Search())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetSearch(call.Argument(0).String())
 				// Update searchParams reference
 				searchParamsObj = newURLSearchParamsObject(rt, u.SearchParams())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining search property: %w", err)))
-	}
+		})
 
-	// Define searchParams (read-only, returns the same object each time)
-	if err := obj.DefineAccessorProperty("searchParams",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "searchParams",
+		func(call sobek.FunctionCall) sobek.Value {
 			return searchParamsObj
-		}),
-		nil,
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining searchParams property: %w", err)))
-	}
+		},
+		nil)
 
-	// Define hash getter/setter
-	if err := obj.DefineAccessorProperty("hash",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "hash",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Hash())
-		}),
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+		},
+		func(call sobek.FunctionCall) sobek.Value {
 			if len(call.Arguments) > 0 {
 				u.SetHash(call.Argument(0).String())
 			}
 			return sobek.Undefined()
-		}),
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining hash property: %w", err)))
-	}
+		})
 
 	// Define toString method
 	toStringMethod := func(call sobek.FunctionCall) sobek.Value {
@@ -350,16 +313,7 @@ func bindURLSearchParams(rt *sobek.Runtime) error {
 				if iteratorMethod != nil && !isNullish(iteratorMethod) {
 					// Has iterator - iterate over it
 					sp = NewURLSearchParams()
-					iterator, err := rt.RunString(`(function(obj) {
-						const result = [];
-						for (const item of obj) {
-							if (!Array.isArray(item) || item.length !== 2) {
-								throw new TypeError("Invalid argument");
-							}
-							result.push([String(item[0]), String(item[1])]);
-						}
-						return result;
-					})`)
+					iterator, err := rt.RunString(iterableExtractorSource)
 					if err != nil {
 						throwAsJSError(rt, NewError(TypeError, "Invalid argument"))
 					}
@@ -432,12 +386,11 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 			return sobek.Undefined()
 		}
 		key := call.Argument(0).String()
-		var value *string
 		if len(call.Arguments) > 1 && !isNullish(call.Argument(1)) {
-			v := call.Argument(1).String()
-			value = &v
+			sp.DeletePair(key, call.Argument(1).String())
+		} else {
+			sp.DeleteAll(key)
 		}
-		sp.Delete(key, value)
 		return sobek.Undefined()
 	}
 	if err := obj.Set("delete", deleteMethod); err != nil {
@@ -479,12 +432,10 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 			return rt.ToValue(false)
 		}
 		key := call.Argument(0).String()
-		var value *string
 		if len(call.Arguments) > 1 && !isNullish(call.Argument(1)) {
-			v := call.Argument(1).String()
-			value = &v
+			return rt.ToValue(sp.HasPair(key, call.Argument(1).String()))
 		}
-		return rt.ToValue(sp.Has(key, value))
+		return rt.ToValue(sp.HasKey(key))
 	}
 	if err := obj.Set("has", hasMethod); err != nil {
 		panic(rt.NewGoError(err))
@@ -552,20 +503,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 
 	// entries method - returns an iterator
 	entriesMethod := func(call sobek.FunctionCall) sobek.Value {
-		entries := sp.Entries()
-		// Convert to array of arrays for iteration
-		result := make([]interface{}, len(entries))
-		for i, entry := range entries {
-			result[i] = []interface{}{entry[0], entry[1]}
-		}
-		arr := rt.ToValue(result).ToObject(rt)
-		// Return the array's iterator
-		iteratorFn := arr.GetSymbol(sobek.SymIterator)
-		if fn, ok := sobek.AssertFunction(iteratorFn); ok {
-			iter, _ := fn(arr)
-			return iter
-		}
-		return arr
+		return sliceIterator(rt, entriesToInterfaces(sp.Entries()))
 	}
 	if err := obj.Set("entries", entriesMethod); err != nil {
 		panic(rt.NewGoError(err))
@@ -573,14 +511,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 
 	// keys method - returns an iterator
 	keysMethod := func(call sobek.FunctionCall) sobek.Value {
-		keys := sp.Keys()
-		arr := rt.ToValue(keys).ToObject(rt)
-		iteratorFn := arr.GetSymbol(sobek.SymIterator)
-		if fn, ok := sobek.AssertFunction(iteratorFn); ok {
-			iter, _ := fn(arr)
-			return iter
-		}
-		return arr
+		return sliceIterator(rt, sp.Keys())
 	}
 	if err := obj.Set("keys", keysMethod); err != nil {
 		panic(rt.NewGoError(err))
@@ -588,44 +519,23 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 
 	// values method - returns an iterator
 	valuesMethod := func(call sobek.FunctionCall) sobek.Value {
-		values := sp.Values()
-		arr := rt.ToValue(values).ToObject(rt)
-		iteratorFn := arr.GetSymbol(sobek.SymIterator)
-		if fn, ok := sobek.AssertFunction(iteratorFn); ok {
-			iter, _ := fn(arr)
-			return iter
-		}
-		return arr
+		return sliceIterator(rt, sp.Values())
 	}
 	if err := obj.Set("values", valuesMethod); err != nil {
 		panic(rt.NewGoError(err))
 	}
 
 	// size property (getter)
-	if err := obj.DefineAccessorProperty("size",
-		rt.ToValue(func(call sobek.FunctionCall) sobek.Value {
+	defineAccessor(rt, obj, "size",
+		func(call sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(sp.Size())
-		}),
-		nil,
-		sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
-		panic(rt.NewGoError(fmt.Errorf("defining size property: %w", err)))
-	}
+		},
+		nil)
 
 	// Symbol.iterator - make URLSearchParams iterable
 	// Returns the same as entries()
 	iteratorMethod := func(call sobek.FunctionCall) sobek.Value {
-		entries := sp.Entries()
-		result := make([]interface{}, len(entries))
-		for i, entry := range entries {
-			result[i] = []interface{}{entry[0], entry[1]}
-		}
-		arr := rt.ToValue(result).ToObject(rt)
-		iteratorFn := arr.GetSymbol(sobek.SymIterator)
-		if fn, ok := sobek.AssertFunction(iteratorFn); ok {
-			iter, _ := fn(arr)
-			return iter
-		}
-		return arr
+		return sliceIterator(rt, entriesToInterfaces(sp.Entries()))
 	}
 	if err := obj.SetSymbol(sobek.SymIterator, rt.ToValue(iteratorMethod)); err != nil {
 		panic(rt.NewGoError(fmt.Errorf("defining Symbol.iterator: %w", err)))
@@ -645,4 +555,39 @@ func throwAsJSError(rt *sobek.Runtime, err error) {
 // isNullish returns true if the value is null or undefined.
 func isNullish(v sobek.Value) bool {
 	return v == nil || sobek.IsUndefined(v) || sobek.IsNull(v)
+}
+
+func defineAccessor(rt *sobek.Runtime, obj *sobek.Object, name string,
+	getter func(call sobek.FunctionCall) sobek.Value,
+	setter func(call sobek.FunctionCall) sobek.Value,
+) {
+	var getterValue sobek.Value
+	var setterValue sobek.Value
+	if getter != nil {
+		getterValue = rt.ToValue(getter)
+	}
+	if setter != nil {
+		setterValue = rt.ToValue(setter)
+	}
+	if err := obj.DefineAccessorProperty(name, getterValue, setterValue, sobek.FLAG_FALSE, sobek.FLAG_TRUE); err != nil {
+		panic(rt.NewGoError(fmt.Errorf("defining %s property: %w", name, err)))
+	}
+}
+
+func sliceIterator(rt *sobek.Runtime, data interface{}) sobek.Value {
+	arr := rt.ToValue(data).ToObject(rt)
+	iteratorFn := arr.GetSymbol(sobek.SymIterator)
+	if fn, ok := sobek.AssertFunction(iteratorFn); ok {
+		iter, _ := fn(arr)
+		return iter
+	}
+	return arr
+}
+
+func entriesToInterfaces(entries [][2]string) []interface{} {
+	result := make([]interface{}, len(entries))
+	for i, entry := range entries {
+		result[i] = []interface{}{entry[0], entry[1]}
+	}
+	return result
 }

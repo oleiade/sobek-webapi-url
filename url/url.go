@@ -7,20 +7,23 @@ import (
 
 // URL represents a WHATWG-style URL.
 //
-// It wraps Go's net/url.URL and provides WHATWG-compatible
-// property accessors and setters.
+// Always construct a URL via NewURL; doing so guarantees that inner and
+// searchParams are non-nil and remain synchronized.
 type URL struct {
-	// internal parsed URL
+	// inner stores the parsed WHATWG representation. It is never nil after
+	// NewURL succeeds.
 	inner *url.URL
 
-	// searchParams is the attached URLSearchParams instance
+	// searchParams is the attached URLSearchParams instance. It is always
+	// non-nil and must stay in lockstep with inner.RawQuery.
 	searchParams *URLSearchParams
 }
 
 // NewURL creates a new URL by parsing input relative to an optional base.
 //
-// If parsing fails, it returns an error that should be converted to a
-// JavaScript TypeError when thrown.
+// The returned URL always has non-nil inner and searchParams fields. If parsing
+// fails, it returns an error that should be converted to a JavaScript
+// TypeError when thrown.
 func NewURL(input string, base string) (*URL, error) {
 	var baseURL *url.URL
 	var err error
@@ -28,11 +31,12 @@ func NewURL(input string, base string) (*URL, error) {
 	if base != "" {
 		baseURL, err = url.Parse(base)
 		if err != nil {
-			return nil, NewError(TypeError, "Invalid URL")
+			return nil, invalidURLError()
 		}
-		// Validate that base is absolute
+		// WHATWG requires base URLs to be absolute; net/url would otherwise allow
+		// relative references, so enforce the stricter behavior here.
 		if !baseURL.IsAbs() {
-			return nil, NewError(TypeError, "Invalid URL")
+			return nil, invalidURLError()
 		}
 	}
 
@@ -40,23 +44,25 @@ func NewURL(input string, base string) (*URL, error) {
 	if baseURL != nil {
 		ref, err := url.Parse(input)
 		if err != nil {
-			return nil, NewError(TypeError, "Invalid URL")
+			return nil, invalidURLError()
 		}
 		parsed = baseURL.ResolveReference(ref)
 	} else {
 		parsed, err = url.Parse(input)
 		if err != nil {
-			return nil, NewError(TypeError, "Invalid URL")
+			return nil, invalidURLError()
 		}
+		// Go's net/url accepts some inputs (e.g., "aaa:b") that WHATWG rejects.
+		// Enforce the WHATWG expectation that URLs without a base are absolute.
 		// Without a base, the URL must be absolute
 		if !parsed.IsAbs() {
-			return nil, NewError(TypeError, "Invalid URL")
+			return nil, invalidURLError()
 		}
 	}
 
 	// Validate scheme - reject empty scheme
 	if parsed.Scheme == "" {
-		return nil, NewError(TypeError, "Invalid URL")
+		return nil, invalidURLError()
 	}
 
 	u := &URL{inner: parsed}
@@ -82,17 +88,24 @@ func CanParse(input string, base string) bool {
 	return err == nil
 }
 
+// invalidURLError allocates a WHATWG-compatible TypeError for invalid URL input.
+func invalidURLError() *Error {
+	return NewError(TypeError, "Invalid URL")
+}
+
 // initSearchParams initializes the searchParams field from the current query string.
 func (u *URL) initSearchParams() {
 	// Don't use NewURLSearchParamsFromString here because it strips leading '?'
-	// but RawQuery might contain '?' as part of the actual query content
+	// but RawQuery might contain '?' as part of the actual query content.
 	u.searchParams = &URLSearchParams{
 		entries: parseFormEncoded(u.inner.RawQuery),
 		owner:   u,
 	}
 }
 
-// syncFromSearchParams updates the URL's query string from the attached searchParams.
+// syncFromSearchParams updates inner.RawQuery from the attached searchParams.
+// It is the only place that should mutate the underlying query once the URL
+// has been constructed, ensuring owner and params stay consistent.
 func (u *URL) syncFromSearchParams() {
 	serialized := u.searchParams.String()
 	u.inner.RawQuery = serialized
@@ -111,13 +124,13 @@ func (u *URL) Href() string {
 func (u *URL) SetHref(href string) error {
 	parsed, err := url.Parse(href)
 	if err != nil {
-		return NewError(TypeError, "Invalid URL")
+		return invalidURLError()
 	}
 	if !parsed.IsAbs() {
-		return NewError(TypeError, "Invalid URL")
+		return invalidURLError()
 	}
 	u.inner = parsed
-	// Update the existing searchParams object
+	// Update the existing searchParams object so references held by JS stay valid.
 	u.updateSearchParams(parsed.RawQuery)
 	return nil
 }
@@ -256,12 +269,28 @@ func (u *URL) SetSearch(search string) {
 
 // updateSearchParams updates the existing searchParams with new query string.
 func (u *URL) updateSearchParams(query string) {
+	u.ensureSearchParams()
 	// Clear existing entries
 	u.searchParams.entries = u.searchParams.entries[:0]
 	// Parse new query and add entries
 	if query != "" {
 		newEntries := parseFormEncoded(query)
 		u.searchParams.entries = append(u.searchParams.entries, newEntries...)
+	}
+}
+
+// ensureSearchParams lazily allocates searchParams and re-attaches the owner.
+func (u *URL) ensureSearchParams() {
+	if u.searchParams == nil {
+		u.searchParams = &URLSearchParams{
+			entries: make([]urlParam, 0),
+			owner:   u,
+		}
+		return
+	}
+	u.searchParams.owner = u
+	if u.searchParams.entries == nil {
+		u.searchParams.entries = make([]urlParam, 0)
 	}
 }
 
@@ -286,9 +315,8 @@ func (u *URL) SetHash(hash string) {
 
 // Origin returns the origin of the URL.
 //
-// For http, https, ws, wss schemes, this returns "scheme://host".
-// For file scheme, this returns "null" per spec.
-// For other schemes, this returns "null".
+// For http, https, ws, wss, and ftp schemes, this returns "scheme://host".
+// For file scheme and other schemes, this returns "null".
 func (u *URL) Origin() string {
 	switch u.inner.Scheme {
 	case "http", "https", "ws", "wss":
@@ -310,4 +338,3 @@ func (u *URL) String() string {
 func (u *URL) ToJSON() string {
 	return u.Href()
 }
-

@@ -105,9 +105,26 @@ func (sp *URLSearchParams) Append(key, value string) {
 	sp.syncOwner()
 }
 
-// Delete removes all entries with the given key.
-// If value is provided (non-nil), only entries with matching key AND value are removed.
+// Delete removes entries with the given key. It accepts an optional value to
+// match the behavior of the JS bindings: when value is nil all entries with
+// the key are removed, otherwise only exact key/value pairs are removed.
+//
+// Deprecated: prefer DeleteAll or DeletePair to make intent explicit.
 func (sp *URLSearchParams) Delete(key string, value *string) {
+	sp.deleteMatching(key, value)
+}
+
+// DeleteAll removes every entry with the provided key (equivalent to JS delete()).
+func (sp *URLSearchParams) DeleteAll(key string) {
+	sp.deleteMatching(key, nil)
+}
+
+// DeletePair removes entries that match both key and value.
+func (sp *URLSearchParams) DeletePair(key, value string) {
+	sp.deleteMatching(key, &value)
+}
+
+func (sp *URLSearchParams) deleteMatching(key string, value *string) {
 	newEntries := make([]urlParam, 0, len(sp.entries))
 	for _, entry := range sp.entries {
 		if entry.key == key {
@@ -142,9 +159,25 @@ func (sp *URLSearchParams) GetAll(key string) []string {
 	return values
 }
 
-// Has returns true if a parameter with the given key exists.
-// If value is provided (non-nil), returns true only if a matching key-value pair exists.
+// Has returns true if a parameter with the given key exists. When value is
+// non-nil it only reports true if a matching key/value pair exists.
+//
+// Deprecated: prefer HasKey or HasPair to make intent explicit.
 func (sp *URLSearchParams) Has(key string, value *string) bool {
+	return sp.hasMatching(key, value)
+}
+
+// HasKey reports whether the given key exists (ignoring values).
+func (sp *URLSearchParams) HasKey(key string) bool {
+	return sp.hasMatching(key, nil)
+}
+
+// HasPair reports whether a specific key/value pair exists.
+func (sp *URLSearchParams) HasPair(key, value string) bool {
+	return sp.hasMatching(key, &value)
+}
+
+func (sp *URLSearchParams) hasMatching(key string, value *string) bool {
 	for _, entry := range sp.entries {
 		if entry.key == key {
 			if value == nil {
@@ -303,8 +336,9 @@ func (sp *URLSearchParams) Values() []string {
 	return result
 }
 
-// percentDecode decodes a percent-encoded string, leaving invalid sequences as-is.
-// This follows the WHATWG URL Standard's percent-decode algorithm.
+// percentDecode implements WHATWG's "string percent decode" algorithm:
+// https://url.spec.whatwg.org/#string-percent-decode.
+// It leaves invalid percent-encoded sequences as-is to match browser behavior.
 func percentDecode(s string) string {
 	var result strings.Builder
 	result.Grow(len(s))
@@ -341,7 +375,8 @@ func unhex(c byte) int {
 	return -1
 }
 
-// parseFormEncoded parses an application/x-www-form-urlencoded string.
+// parseFormEncoded parses an application/x-www-form-urlencoded string per
+// https://url.spec.whatwg.org/#concept-urlencoded-parser.
 func parseFormEncoded(s string) []urlParam {
 	entries := make([]urlParam, 0)
 
@@ -381,7 +416,8 @@ func parseFormEncoded(s string) []urlParam {
 	return entries
 }
 
-// encodeFormEncoded serializes entries to application/x-www-form-urlencoded format.
+// encodeFormEncoded serializes entries to application/x-www-form-urlencoded
+// format per https://url.spec.whatwg.org/#concept-urlencoded-string.
 func encodeFormEncoded(entries []urlParam) string {
 	if len(entries) == 0 {
 		return ""
@@ -399,9 +435,9 @@ func encodeFormEncoded(entries []urlParam) string {
 	return strings.Join(parts, "&")
 }
 
-// formEncode encodes a string for application/x-www-form-urlencoded.
-// This follows the WHATWG URL Standard encoding rules.
-// The string is first converted to UTF-8 bytes, then each byte is encoded.
+// formEncode implements WHATWG's application/x-www-form-urlencoded serializer
+// (https://url.spec.whatwg.org/#concept-urlencoded-byte-serialization). The
+// string is first converted to UTF-8 bytes, then each byte is encoded.
 func formEncode(s string) string {
 	var builder strings.Builder
 	builder.Grow(len(s) * 3) // worst case: all characters need encoding
@@ -439,4 +475,3 @@ func hexDigit(n byte) byte {
 	}
 	return 'A' + n - 10
 }
-

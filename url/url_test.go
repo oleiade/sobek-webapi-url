@@ -6,6 +6,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// WPT skips summary:
+//   1. data: URL opaque paths are unsupported by Go's net/url, so
+//      urlsearchparams-delete.js remains skipped.
+//   2. URLSearchParams iterators are snapshots, not live views, making the
+//      forEach "For-of Check" test fail (t.Skip in TestURLSearchParamsForEach).
+//   3. DOMException branding is incomplete in the Sobek test stubs, so the
+//      constructor branding suite stays skipped until sobek gains real DOMException
+//      semantics.
+//   4. net/url accepts more base URLs than WHATWG permits (e.g., "aaa:b"), so the
+//      URL.canParse/parse WPT suites are skipped until a stricter parser is wired in.
+
 // TestURLSearchParamsAppend runs the WPT tests for URLSearchParams.append()
 func TestURLSearchParamsAppend(t *testing.T) {
 	t.Parallel()
@@ -226,4 +237,78 @@ func TestURLToJSON(t *testing.T) {
 	ts := newTestSetup(t)
 	err := executeTestScripts(ts, scripts)
 	require.NoError(t, err)
+}
+
+func TestURLSearchAndParamsStayInSync(t *testing.T) {
+	t.Parallel()
+
+	u, err := NewURL("https://example.com/?foo=bar", "")
+	require.NoError(t, err)
+
+	params := u.SearchParams()
+	require.NotNil(t, params)
+
+	params.Set("foo", "baz")
+	require.Equal(t, "?foo=baz", u.Search())
+	require.Equal(t, "foo=baz", u.inner.RawQuery)
+
+	u.SetSearch("?a=1&b=2")
+	require.Same(t, params, u.SearchParams())
+
+	value, ok := params.Get("a")
+	require.True(t, ok)
+	require.Equal(t, "1", value)
+	require.Equal(t, "a=1&b=2", params.String()) // order matches serialized query
+
+	u.SetSearch("")
+	require.Equal(t, "", u.Search())
+	require.False(t, u.inner.ForceQuery)
+	require.Equal(t, 0, params.Size())
+}
+
+func TestURLSetHrefKeepsSearchParamsReference(t *testing.T) {
+	t.Parallel()
+
+	u, err := NewURL("https://example.com/path?foo=bar", "")
+	require.NoError(t, err)
+
+	params := u.SearchParams()
+	require.NotNil(t, params)
+
+	err = u.SetHref("https://grafana.com/api?alpha=beta")
+	require.NoError(t, err)
+
+	require.Same(t, params, u.SearchParams())
+	require.Equal(t, "https://grafana.com/api?alpha=beta", u.Href())
+
+	alpha, ok := params.Get("alpha")
+	require.True(t, ok)
+	require.Equal(t, "beta", alpha)
+}
+
+func TestURLOrigin(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "https standard", raw: "https://grafana.com/path", want: "https://grafana.com"},
+		{name: "ws", raw: "ws://example.com/socket", want: "ws://example.com"},
+		{name: "ftp", raw: "ftp://ftp.example.com/resource", want: "ftp://ftp.example.com"},
+		{name: "file", raw: "file:///tmp/data", want: "null"},
+		{name: "custom scheme", raw: "custom://host/path", want: "null"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			u, err := NewURL(tc.raw, "")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, u.Origin())
+		})
+	}
 }
