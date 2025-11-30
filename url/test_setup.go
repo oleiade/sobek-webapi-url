@@ -51,6 +51,7 @@ func newTestSetup(t testing.TB) *testSetup {
 
 func testExecuteTestScripts(ts *testSetup) error {
 	scripts := []testScript{
+		{base: filepath.Join(computeRepoRoot(), "url"), path: "stubs.js"},
 		{base: wptPath("resources"), path: "testharness.js"},
 	}
 
@@ -74,4 +75,3 @@ func executeTestScripts(ts *testSetup, scripts []testScript) error {
 
 	return nil
 }
-
