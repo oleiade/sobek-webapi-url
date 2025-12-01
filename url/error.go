@@ -58,4 +58,3 @@ func NewError(name ErrorName, message string) *Error {
 }
 
 var _ error = (*Error)(nil)
-

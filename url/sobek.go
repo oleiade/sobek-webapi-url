@@ -1,6 +1,7 @@
 package url
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/grafana/sobek"
@@ -28,6 +29,8 @@ func RegisterRuntime(rt *sobek.Runtime) error {
 }
 
 // bindURL registers the URL constructor and static methods.
+//
+//nolint:funlen // This function is intentionally long as it defines all URL constructor logic in one place.
 func bindURL(rt *sobek.Runtime) error {
 	constructor := func(call sobek.ConstructorCall) *sobek.Object {
 		// Get the input argument (required)
@@ -125,12 +128,14 @@ func bindURL(rt *sobek.Runtime) error {
 }
 
 // newURLObject creates a JS object wrapping a Go URL instance.
+//
+//nolint:funlen // This function is intentionally long as it defines all URL properties and methods.
 func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 	// Create the searchParams object once and cache it
 	searchParamsObj := newURLSearchParamsObject(rt, u.SearchParams())
 
 	defineAccessor(rt, obj, "href",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Href())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -145,13 +150,13 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "origin",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Origin())
 		},
 		nil)
 
 	defineAccessor(rt, obj, "protocol",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Protocol())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -162,7 +167,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "username",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Username())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -173,7 +178,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "password",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Password())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -184,7 +189,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "host",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Host())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -195,7 +200,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "hostname",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Hostname())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -206,7 +211,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "port",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Port())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -217,7 +222,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "pathname",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Pathname())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -228,7 +233,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "search",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Search())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -241,13 +246,13 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	defineAccessor(rt, obj, "searchParams",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return searchParamsObj
 		},
 		nil)
 
 	defineAccessor(rt, obj, "hash",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(u.Hash())
 		},
 		func(call sobek.FunctionCall) sobek.Value {
@@ -258,7 +263,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 		})
 
 	// Define toString method
-	toStringMethod := func(call sobek.FunctionCall) sobek.Value {
+	toStringMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return rt.ToValue(u.String())
 	}
 	if err := obj.Set("toString", toStringMethod); err != nil {
@@ -266,7 +271,7 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 	}
 
 	// Define toJSON method
-	toJSONMethod := func(call sobek.FunctionCall) sobek.Value {
+	toJSONMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return rt.ToValue(u.ToJSON())
 	}
 	if err := obj.Set("toJSON", toJSONMethod); err != nil {
@@ -277,6 +282,8 @@ func newURLObject(rt *sobek.Runtime, u *URL, obj *sobek.Object) *sobek.Object {
 }
 
 // bindURLSearchParams registers the URLSearchParams constructor.
+//
+//nolint:gocognit,nestif // Complex constructor logic to handle multiple input types as per WHATWG spec.
 func bindURLSearchParams(rt *sobek.Runtime) error {
 	constructor := func(call sobek.ConstructorCall) *sobek.Object {
 		var sp *URLSearchParams
@@ -355,11 +362,13 @@ func bindURLSearchParams(rt *sobek.Runtime) error {
 }
 
 // newURLSearchParamsObject creates a JS object wrapping a Go URLSearchParams instance.
+//
+//nolint:gocognit,cyclop,funlen // This function is intentionally complex as it defines all URLSearchParams methods.
 func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Object {
 	obj := rt.NewObject()
 
 	// Set Symbol.toPrimitive for proper string conversion (params + '')
-	toPrimitiveMethod := func(call sobek.FunctionCall) sobek.Value {
+	toPrimitiveMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return rt.ToValue(sp.String())
 	}
 	if err := obj.SetSymbol(sobek.SymToPrimitive, rt.ToValue(toPrimitiveMethod)); err != nil {
@@ -456,7 +465,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 	}
 
 	// sort method
-	sortMethod := func(call sobek.FunctionCall) sobek.Value {
+	sortMethod := func(_ sobek.FunctionCall) sobek.Value {
 		sp.Sort()
 		return sobek.Undefined()
 	}
@@ -465,7 +474,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 	}
 
 	// toString method
-	toStringMethod := func(call sobek.FunctionCall) sobek.Value {
+	toStringMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return rt.ToValue(sp.String())
 	}
 	if err := obj.Set("toString", toStringMethod); err != nil {
@@ -502,7 +511,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 	}
 
 	// entries method - returns an iterator
-	entriesMethod := func(call sobek.FunctionCall) sobek.Value {
+	entriesMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return sliceIterator(rt, entriesToInterfaces(sp.Entries()))
 	}
 	if err := obj.Set("entries", entriesMethod); err != nil {
@@ -510,7 +519,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 	}
 
 	// keys method - returns an iterator
-	keysMethod := func(call sobek.FunctionCall) sobek.Value {
+	keysMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return sliceIterator(rt, sp.Keys())
 	}
 	if err := obj.Set("keys", keysMethod); err != nil {
@@ -518,7 +527,7 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 	}
 
 	// values method - returns an iterator
-	valuesMethod := func(call sobek.FunctionCall) sobek.Value {
+	valuesMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return sliceIterator(rt, sp.Values())
 	}
 	if err := obj.Set("values", valuesMethod); err != nil {
@@ -527,14 +536,14 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 
 	// size property (getter)
 	defineAccessor(rt, obj, "size",
-		func(call sobek.FunctionCall) sobek.Value {
+		func(_ sobek.FunctionCall) sobek.Value {
 			return rt.ToValue(sp.Size())
 		},
 		nil)
 
 	// Symbol.iterator - make URLSearchParams iterable
 	// Returns the same as entries()
-	iteratorMethod := func(call sobek.FunctionCall) sobek.Value {
+	iteratorMethod := func(_ sobek.FunctionCall) sobek.Value {
 		return sliceIterator(rt, entriesToInterfaces(sp.Entries()))
 	}
 	if err := obj.SetSymbol(sobek.SymIterator, rt.ToValue(iteratorMethod)); err != nil {
@@ -546,7 +555,8 @@ func newURLSearchParamsObject(rt *sobek.Runtime, sp *URLSearchParams) *sobek.Obj
 
 // throwAsJSError converts an error to a JS exception and panics.
 func throwAsJSError(rt *sobek.Runtime, err error) {
-	if urlErr, ok := err.(*Error); ok {
+	var urlErr *Error
+	if errors.As(err, &urlErr) {
 		panic(urlErr.JSError(rt))
 	}
 	panic(rt.NewGoError(err))

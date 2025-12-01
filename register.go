@@ -53,4 +53,3 @@ import (
 func RegisterGlobally(rt *sobek.Runtime) error {
 	return url.RegisterRuntime(rt)
 }
-

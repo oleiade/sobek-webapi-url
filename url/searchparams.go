@@ -14,6 +14,8 @@ type urlParam struct {
 // URLSearchParams represents a collection of URL query parameters.
 //
 // It maintains insertion order and supports the full WHATWG URLSearchParams API.
+//
+//nolint:revive // Name matches WHATWG standard URLSearchParams API.
 type URLSearchParams struct {
 	// entries stores the parameters in insertion order
 	entries []urlParam
@@ -254,17 +256,18 @@ func compareByCodeUnits(a, b string) int {
 		}
 
 		// If first code unit is equal and there's a second one, compare it
-		if len(aUnits) > 1 && len(bUnits) > 1 {
+		switch {
+		case len(aUnits) > 1 && len(bUnits) > 1:
 			if aUnits[1] != bUnits[1] {
 				if aUnits[1] < bUnits[1] {
 					return -1
 				}
 				return 1
 			}
-		} else if len(aUnits) > 1 {
+		case len(aUnits) > 1:
 			// a has surrogate pair, b doesn't - a is "longer" at this position
 			return 1
-		} else if len(bUnits) > 1 {
+		case len(bUnits) > 1:
 			// b has surrogate pair, a doesn't
 			return -1
 		}
