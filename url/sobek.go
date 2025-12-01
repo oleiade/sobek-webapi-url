@@ -3,6 +3,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	neturl "net/url"
 
 	"github.com/grafana/sobek"
 )
@@ -600,4 +601,25 @@ func entriesToInterfaces(entries [][2]string) []interface{} {
 		result[i] = []interface{}{entry[0], entry[1]}
 	}
 	return result
+}
+
+// ExtractURL extracts a URL object from a sobek.Value, if present.
+func ExtractURL(v sobek.Value) (*URL, bool) {
+	if isNullish(v) {
+		return nil, false
+	}
+	u, ok := v.Export().(*URL)
+	return u, ok
+}
+
+// ParseURLArgument converts a sobek.Value into a Go *url.URL.
+// Accepts either a URL object or a string value.
+func ParseURLArgument(v sobek.Value) (*neturl.URL, error) {
+	if u, ok := ExtractURL(v); ok {
+		return u.GoURL(), nil
+	}
+	if isNullish(v) {
+		return nil, invalidURLError()
+	}
+	return neturl.Parse(v.String())
 }

@@ -19,6 +19,12 @@ type URL struct {
 	searchParams *URLSearchParams
 }
 
+// GoURL returns the underlying Go *url.URL representation.
+// This lets Go callers interoperate with the standard library seamlessly.
+func (u *URL) GoURL() *url.URL {
+	return u.inner
+}
+
 // NewURL creates a new URL by parsing input relative to an optional base.
 //
 // The returned URL always has non-nil inner and searchParams fields. If parsing

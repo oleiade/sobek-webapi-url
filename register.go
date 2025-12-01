@@ -48,6 +48,18 @@ import (
 	"github.com/oleiade/sobek-webapi-url/url"
 )
 
+// URL is a re-export of url.URL for consumers such as k6 modules.
+type URL = url.URL
+
+var (
+	// ExtractURL extracts a url.URL from a Sobek Value.
+	//nolint:gochecknoglobals // Re-exported for convenience
+	ExtractURL = url.ExtractURL
+	// ParseURLArgument parses a URL argument from a Sobek Value.
+	//nolint:gochecknoglobals // Re-exported for convenience
+	ParseURLArgument = url.ParseURLArgument
+)
+
 // RegisterGlobally exposes the URL and URLSearchParams constructors
 // in the provided sobek runtime.
 func RegisterGlobally(rt *sobek.Runtime) error {
